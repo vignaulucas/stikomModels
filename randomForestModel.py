@@ -114,8 +114,8 @@ def main():
     rf_model = build_random_forest_model(input_shape_image, input_shape_weather, input_shape_munsell)
     
     # Load and prepare your dataset
-    file_path = '/Users/vignaulucas/Desktop/stikom_models/dataAnalysis_stikom - Feuille 1.csv'
-    munsell_file_path = '/Users/vignaulucas/Desktop/stikom_models/munsell_color_database.csv'
+    file_path = '/Users/vignaulucas/Desktop/stikom_models/stikomModels/dataAnalysis_stikom - Feuille 1.csv'
+    munsell_file_path = '/Users/vignaulucas/Desktop/stikom_models/stikomModels/munsell_color_database.csv'
     images, labels, weather_data, munsell_features, scaler, df = load_dataset(file_path, munsell_file_path, target_size=(128, 128))
     
     # Flatten images and concatenate all features
@@ -135,7 +135,7 @@ def main():
         print(f"Sample {i+1}: Predicted NPK concentration: {npk:.2f}, Predicted pH: {ph:.2f}")
     
     # Testing with a new image
-    test_image_path = '/Users/vignaulucas/Desktop/stikom_models/tnh 1.jpg'
+    test_image_path = '/Users/vignaulucas/Desktop/stikom_models/stikomModels/tnh 1.jpg'
     test_image, test_munsell = preprocess_image(test_image_path, target_size=(128, 128), munsell_df=pd.read_csv(munsell_file_path))
     test_image_flattened = test_image.reshape(1, -1)
     test_features = np.concatenate([test_image_flattened, weather_data[0].reshape(1, -1), munsell_features[0].reshape(1, -1)], axis=1)

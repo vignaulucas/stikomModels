@@ -16,14 +16,14 @@ def find_closest_munsell_color(rgb, munsell_df):
     min_dist = float('inf')
     closest_color = None
     for _, row in munsell_df.iterrows():
-        munsell_color_value = np.array([row['x']])  # Adjust this if 'x' is a composite value
+        munsell_color_value = np.array([row['x']]) 
         dist = np.linalg.norm(rgb - munsell_color_value)
         if dist < min_dist:
             min_dist = dist
             closest_color = row
     return closest_color
 
-# Function to convert Munsell hue to a numeric code
+# Function to convert Munsell tint to a numeric code
 def hue_to_numeric(hue):
     # Extract the numeric part and the letter part separately
     numeric_part = ''.join([char for char in hue if char.isdigit() or char == '.'])
@@ -100,12 +100,12 @@ def main():
     print("Starting main function...")
     input_shape_image = (128, 128, 3)
     input_shape_weather = 3  # Suhu Udara, Precipitation, Kelembapan
-    input_shape_munsell = 3  # Hue, Value, Chroma
+    input_shape_munsell = 3  # tint, Value (luminosity), Chroma (intensitiy)
     
     model_npk, model_ph = build_gradient_boosting_model()
     
-    file_path = '/Users/vignaulucas/Desktop/stikom_models/dataAnalysis_stikom - Feuille 1.csv'
-    munsell_file_path = '/Users/vignaulucas/Desktop/stikom_models/munsell_color_database.csv'
+    file_path = '/Users/vignaulucas/Desktop/stikom_models/stikomModels/dataAnalysis_stikom - Feuille 1.csv'
+    munsell_file_path = '/Users/vignaulucas/Desktop/stikom_models/stikomModels/munsell_color_database.csv'
     images, labels, weather_data, munsell_features, scaler, df = load_dataset(file_path, munsell_file_path, target_size=(128, 128))
 
     # Flatten image data for Gradient Boosting

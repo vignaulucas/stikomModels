@@ -5,17 +5,19 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, Input, BatchNormalization, concatenate
 from tensorflow.keras.preprocessing.image import img_to_array, load_img
 from tensorflow.keras.callbacks import ReduceLROnPlateau, EarlyStopping
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
+from sklearn.metrics import mean_squared_error
 
 # Function to find the closest Munsell color
 def find_closest_munsell_color(rgb, munsell_df):
     min_dist = float('inf')
     closest_color = None
     for _, row in munsell_df.iterrows():
-        munsell_color_value = np.array([row['x']])  # Adjust this if 'x' is a composite value
+        munsell_color_value = np.array([row['x']]) 
         dist = np.linalg.norm(rgb - munsell_color_value)
         if dist < min_dist:
             min_dist = dist
@@ -24,14 +26,10 @@ def find_closest_munsell_color(rgb, munsell_df):
 
 # Function to convert Munsell hue to a numeric code
 def hue_to_numeric(hue):
-    # Extract the numeric part and the letter part separately
     numeric_part = ''.join([char for char in hue if char.isdigit() or char == '.'])
     letter_part = ''.join([char for char in hue if char.isalpha()])
-    # Convert the numeric part to a float
     numeric_value = float(numeric_part)
-    # Assign a numeric value to the letter part
     letter_value = sum([ord(char) - ord('A') + 1 for char in letter_part])
-    # Combine both parts to form a unique numeric value
     return numeric_value + letter_value / 100
 
 # Function to preprocess images and extract Munsell color features
@@ -40,19 +38,15 @@ def preprocess_image(image_path, target_size, munsell_df):
     img_array = img_to_array(img).astype('float32')
     img_array = img_array / 255.0  # Normalize to [0, 1]
     
-    # Extract dominant color using KMeans clustering
     pixels = img_array.reshape(-1, 3)
     kmeans = KMeans(n_clusters=1).fit(pixels)
     dominant_color = kmeans.cluster_centers_[0]
     
-    # Find the closest Munsell color
     munsell_color = find_closest_munsell_color(dominant_color, munsell_df)
     
-    # Convert hue to numeric
     munsell_color_numeric = munsell_color.copy()
     munsell_color_numeric['h'] = hue_to_numeric(munsell_color['h'])
     
-    # Return image array and Munsell color features
     return img_array, munsell_color_numeric[['h', 'V', 'C']].values.astype('float32')
 
 # Function to preprocess and align weather data
@@ -88,104 +82,75 @@ def load_dataset(file_path, munsell_file_path, target_size):
     weather_data, scaler = preprocess_weather_data(df)
     return np.array(images), np.array(labels), np.array(weather_data), np.array(munsell_colors), scaler, df
 
+def build_gradient_boosting_model():
+    model_npk = GradientBoostingRegressor(n_estimators=100, learning_rate=0.1, max_depth=3, random_state=0, loss='squared_error')
+    model_ph = GradientBoostingRegressor(n_estimators=100, learning_rate=0.1, max_depth=3, random_state=0, loss='squared_error')
+    return model_npk, model_ph
 
-# Function to build the multimodal neural network model
-def build_multimodal_model(input_shape_image, input_shape_weather, input_shape_munsell):
-    cnn_input = Input(shape=input_shape_image)
-    x = Conv2D(32, (3, 3), activation='relu')(cnn_input)
-    x = BatchNormalization()(x)
-    x = MaxPooling2D((2, 2))(x)
-    x = Conv2D(64, (3, 3), activation='relu')(x)
-    x = BatchNormalization()(x)
-    x = MaxPooling2D((2, 2))(x)
-    x = Conv2D(128, (3, 3), activation='relu')(x)
-    x = BatchNormalization()(x)
-    x = MaxPooling2D((2, 2))(x)
-    x = Conv2D(256, (3, 3), activation='relu')(x)
-    x = BatchNormalization()(x)
-    x = MaxPooling2D((2, 2))(x)
-    x = Flatten()(x)
-    
-    weather_input = Input(shape=(input_shape_weather,))
-    y = Dense(128, activation='relu')(weather_input)
-    y = BatchNormalization()(y)
-    y = Dropout(0.3)(y)
-    
-    munsell_input = Input(shape=(input_shape_munsell,))
-    z = Dense(32, activation='relu')(munsell_input)
-    z = BatchNormalization()(z)
-    z = Dropout(0.3)(z)
+def build_random_forest_model():
+    rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+    return rf_model
 
-    combined = concatenate([x, y, z])
-    a = Dense(512, activation='relu')(combined)
-    a = Dropout(0.5)(a)
-    a = Dense(256, activation='relu')(a)
-    a = Dropout(0.4)(a)
-    a = Dense(128, activation='relu')(a)
-    a = Dropout(0.3)(a)
-    output = Dense(2, activation='softplus')(a)  # Predict pH and NPK levels
-    
-    model = Model(inputs=[cnn_input, weather_input, munsell_input], outputs=output)
-    model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mean_absolute_error'])
-    
-    return model
-
-# Main function
 def main():
     print("Starting main function...")
     input_shape_image = (128, 128, 3)
     input_shape_weather = 3  # Suhu Udara, Precipitation, Kelembapan
     input_shape_munsell = 3  # Hue, Value, Chroma
     
-    model = build_multimodal_model(input_shape_image, input_shape_weather, input_shape_munsell)
+    gb_model_npk, gb_model_ph = build_gradient_boosting_model()
+    rf_model = build_random_forest_model()
     
     file_path = '/Users/vignaulucas/Desktop/stikom_models/stikomModels/dataAnalysis_stikom - Feuille 1.csv'
     munsell_file_path = '/Users/vignaulucas/Desktop/stikom_models/stikomModels/munsell_color_database.csv'
     images, labels, weather_data, munsell_features, scaler, df = load_dataset(file_path, munsell_file_path, target_size=(128, 128))
 
+    # Flatten image data for the models
+    flattened_images = images.reshape(images.shape[0], -1)
+    combined_features = np.hstack((flattened_images, weather_data, munsell_features))
     
-    X_train_img, X_test_img, y_train, y_test = train_test_split(images, labels, test_size=0.2, random_state=42)
-    X_train_weather, X_test_weather = train_test_split(weather_data, test_size=0.2, random_state=42)
-    X_train_munsell, X_test_munsell = train_test_split(munsell_features, test_size=0.2, random_state=42)
-
-    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=3, min_lr=0.00001, verbose=1)
-    early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True, verbose=1)
+    X_train, X_test, y_train, y_test = train_test_split(combined_features, labels, test_size=0.2, random_state=42)
     
-    print("Training the model...")
-    history = model.fit(
-        [X_train_img, X_train_weather, X_train_munsell], y_train,
-        validation_data=([X_test_img, X_test_weather, X_test_munsell], y_test),
-        epochs=50,
-        batch_size=10,
-        callbacks=[reduce_lr, early_stopping]
-    )
+    # Split labels for NPK and pH for gradient boosting model
+    y_train_npk = y_train[:, 0]
+    y_train_ph = y_train[:, 1]
+    y_test_npk = y_test[:, 0]
+    y_test_ph = y_test[:, 1]
 
-    # Plot training and validation loss
-    plt.plot(history.history['loss'], label='Training loss')
-    plt.plot(history.history['val_loss'], label='Validation loss')
-    plt.title('Training and Validation Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.show()
-
-    # Make predictions on a sample
+    print("Training the Gradient Boosting NPK model...")
+    gb_model_npk.fit(X_train, y_train_npk)
+    
+    print("Training the Gradient Boosting pH model...")
+    gb_model_ph.fit(X_train, y_train_ph)
+    
+    print("Training the Random Forest model...")
+    rf_model.fit(X_train, y_train)
+    
     print("Making predictions on test sample...")
-    test_index = 0
-    test_image_path = df.iloc[test_index]['Foto']
-    test_image, _ = preprocess_image(test_image_path, target_size=(128, 128), munsell_df=pd.read_csv(munsell_file_path))
-    test_image = np.expand_dims(test_image, axis=0)
-
-    test_weather = np.array([[df.iloc[test_index]['Suhu Udara'], df.iloc[test_index]['Precipitation'], df.iloc[test_index]['Kelembapan']]])
-    test_weather = scaler.transform(test_weather)
-    test_munsell = np.expand_dims(munsell_features[test_index], axis=0)
-
-    prediction = model.predict([test_image, test_weather, test_munsell])
-    npk, ph = prediction[0]
-    print("Predicted NpK value:", npk)
-    print("Predicted pH value:", ph)
+    predictions_npk_gb = gb_model_npk.predict(X_test)
+    predictions_ph_gb = gb_model_ph.predict(X_test)
+    predictions_rf = rf_model.predict(X_test)
+    
+    # Calculate Mean Squared Error for both models
+    mse_npk_gb = mean_squared_error(y_test_npk, predictions_npk_gb)
+    mse_ph_gb = mean_squared_error(y_test_ph, predictions_ph_gb)
+    mse_rf = mean_squared_error(y_test, predictions_rf)
+    
+    print(f"Gradient Boosting NPK MSE: {mse_npk_gb:.4f}")
+    print(f"Gradient Boosting pH MSE: {mse_ph_gb:.4f}")
+    print(f"Random Forest MSE: {mse_rf:.4f}")
+    
+    if mse_npk_gb + mse_ph_gb < mse_rf:
+        print("The Gradient Boosting model is more accurate.")
+    else:
+        print("The Random Forest model is more accurate.")
+    
+    # Detailed prediction outputs
+    for idx in range(len(predictions_rf)):
+        print(f"Sample {idx + 1}:")
+        print(f"  Gradient Boosting - Predicted NPK: {predictions_npk_gb[idx]:.2f}, Actual NPK: {y_test_npk[idx]:.2f}")
+        print(f"  Gradient Boosting - Predicted pH: {predictions_ph_gb[idx]:.2f}, Actual pH: {y_test_ph[idx]:.2f}")
+        print(f"  Random Forest - Predicted NPK: {predictions_rf[idx][0]:.2f}, Predicted pH: {predictions_rf[idx][1]:.2f}")
+        print(f"  Actual NPK: {y_test[idx][0]:.2f}, Actual pH: {y_test[idx][1]:.2f}")
 
 if __name__ == '__main__':
     main()
-
-
