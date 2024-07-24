@@ -1,25 +1,6 @@
 STIKOM Soil Analysis and Prediction Models
 This repository contains the code and data for my internship project at STIKOM Bali, focusing on predicting soil NPK and pH levels from soil images. The project involves multiple machine learning models, including Convolutional Neural Networks (CNN), Gradient Boosting, and Random Forest. Various preprocessing techniques have been applied to improve model accuracy.
 
-Repository Structure
-Copier le code
-.
-├── preprocessing_steps_30_datas
-│   ├── original
-│   ├── normalized
-│   ├── segmented_original
-│   ├── segmented_two_clusters
-├── preprocessing_steps_augmentedData
-│   ├── cleaned
-│   ├── cleanedV2
-│   ├── segmented_unwanted_element
-│   ├── segmentedV2
-├── predictions
-│   ├── predictions_30_datas
-│   ├── predictions_500_datas
-├── dataAnalysis_augmented.csv
-├── munsell_color_database.csv
-└── README.md
 Project Overview
 Initial Approach
 At the beginning of my internship, I developed a highly complex model with numerous parameters, hoping to achieve accurate predictions of soil pH and NPK concentrations from soil images. Unfortunately, this initial model did not perform well, as it was prone to overfitting and struggled with the limited dataset available. Consequently, I decided to adopt a different approach by simplifying the model architecture, which ultimately proved to be more precise and effective.
